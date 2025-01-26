@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"sync"
 	"golang.org/x/net/html"
 )
 
 type Link struct {
 	linkURL    string
-	isInternal bool
+	content string
 }
 
 func main() {
@@ -36,7 +35,7 @@ func main() {
 		}()
 		for scrapedLinks := range results {
 			for _, link := range scrapedLinks {
-				fmt.Printf("Link: %v\tIs-Internal: %v\n", link.linkURL, link.isInternal)
+				fmt.Printf("Meta: %v\tContent: %v\n", link.linkURL, link.content)
 			}
 		}
 	} else {
@@ -53,7 +52,7 @@ func printScraped(link string, results chan<- []Link) {
 	}
 	defer resp.Body.Close()
 	var tags []string
-	tags = append(tags, "a")
+	tags = append(tags, "meta")
 	fmt.Println("Scraped links for the website:\t" + link)
 	scrapeLinks(tags, resp, link, results)
 }
@@ -71,10 +70,15 @@ func scrapeLinks(links []string, resp *http.Response, baseLink string, results c
 			if string(tempByteString) == linkTag {
 				for {
 					key, value, moreAttr := z.TagAttr()
-					if string(key) == "href" {
-						tempValue := string(value)
-						isInternal := len(tempValue) > 0 && (tempValue[0] == '/' || strings.Contains(tempValue, baseLink))
-						tempLinkArrBuff = append(tempLinkArrBuff, Link{tempValue, isInternal})
+          var tempValue, content string
+          if string(key) == "property" {
+            tempValue = string(value)
+            if moreAttr {
+              key,value,_ := z.TagAttr();
+              if string(key) == "content"{
+                content = string(value)
+              }           }
+           tempLinkArrBuff = append(tempLinkArrBuff, Link{tempValue, content})
 					}
 					if !moreAttr {
 						break
